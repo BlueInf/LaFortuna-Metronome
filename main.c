@@ -42,10 +42,10 @@ int main(void) {
 
     init();
     //cli();
-    os_add_task(displayFrame,      25, 1);
+    //os_add_task(displayFrame,      25, 1);
    // sei();
 
-    sei();
+  
     for(;;){
 
 
@@ -54,7 +54,7 @@ int main(void) {
     {
         
     
-     cli();
+     
      sei();
         case TITLE_FRAME:
             titleFrame();
@@ -79,12 +79,14 @@ void init(void) {
 
     /** Initialize the  display */
     init_lcd();
+    os_init_scheduler();
+    os_init_ruota();
 
     /** show the title frame */
     //titleFrame();
 
  //   os_init_scheduler();
-    os_init_ruota();
+    
 
  
 }
@@ -122,17 +124,17 @@ const uint16_t sinewave[]= //sine 256 values
 
 int firstTitle=1;
 void titleFrame(){
+    sei();
     if(!(get_switch_state(_BV(SWN)) || get_switch_state(_BV(SWE)) || get_switch_state(_BV(SWW)) || get_switch_state(_BV(SWS))) && firstTitle){
     firstTitle=0;
     clear_screen();
     display_string_xy("This is the metronome!!!!",WIDTH/3-30,HEIGHT/2);
     display_string_xy("Double tap to set the frequency",WIDTH/3-30,HEIGHT/2+8);
     display_string_xy("Made by Krasimir Marinov",WIDTH/3-30,HEIGHT/2+16);
-    } else if(get_switch_state(_BV(SWN)) || get_switch_state(_BV(SWE)) || get_switch_state(_BV(SWW)) || get_switch_state(_BV(SWS)) && firstTitle==0 ){
+    } 
+    if(get_switch_state(_BV(SWN)) || get_switch_state(_BV(SWE)) || get_switch_state(_BV(SWW)) || get_switch_state(_BV(SWS) )){
         display_string_xy("Up button clicked",WIDTH/3-30,HEIGHT/2+24);
-
-
-
+        
 
     }
 
