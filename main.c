@@ -26,6 +26,17 @@ int8_t enc_delta(void);
 volatile int8_t delta;
 
 int displayFrame(int state);
+int soundTask(int state);
+
+
+int soundTask(int state)
+{
+    OCR1A = 4435;
+	OCR3A = 4435;
+    OCR1A = 0;
+	OCR3A = 0;
+    return state;
+}
 
 volatile flag = 0;
 volatile counter = 0;
@@ -42,8 +53,8 @@ int displayFrame(int state)
 int timerTask(int state)
 {
    
-    OCR1A = 1500;
-	OCR3A = OCR1A;
+    OCR1A = 4435;
+	OCR3A = 4435;;
     timePassed += 5;
     if (FLAG == 1)
     {
@@ -53,6 +64,8 @@ int timerTask(int state)
     {
         display_string_xy("Flag = 0", 30, 60);
     }
+    OCR1A = 0;
+	OCR3A = 0;
     return state;
 }
 
@@ -66,8 +79,8 @@ int main(void)
 
     for (;;)
     {
-    OCR1A = 5500;
-	OCR3A = OCR1A;
+    // OCR1A = 4435;
+	// OCR3A = OCR1A;
         if (flag)
         {
 
@@ -131,7 +144,7 @@ void init(void)
     init_lcd();
     os_init_scheduler();
     os_init_ruota();
-    os_add_task(timerTask, 50, 1);
+    os_add_task(timerTask, 1000, 1);
     os_add_task(displayFrame, 25, 1);
 }
 
@@ -143,6 +156,7 @@ void init(void)
 
 volatile int firstTitle = 1;
 volatile int firstButtonClicked = 0;
+volatile int secondButtonClicked = 0;
 void titleFrame()
 {
 
@@ -160,14 +174,14 @@ void titleFrame()
         {
             firstButtonClicked = 1;
             FLAG = 0;
-            display_string_xy("button clicked", WIDTH / 3 - 30, HEIGHT / 2 + 24);
+            display_string_xy("First button clicked", WIDTH / 3 - 30, HEIGHT / 2 + 24);
             return;
         }
         else if (get_switch_state(_BV(SWN)) || get_switch_state(_BV(SWE)) || get_switch_state(_BV(SWW)) || get_switch_state(_BV(SWS)) && (firstButtonClicked == 1))
         {
             display_string_xy("Second button clicked", WIDTH / 3 - 30, HEIGHT / 2 + 32);
             FLAG = 0;
-            firstButtonClicked = 1;
+            secondButtonClicked = 1;
             return;
         }
     }
