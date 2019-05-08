@@ -6,6 +6,7 @@
 #include <ruota.h>
 #include "rios.h"
 #include <util/delay.h>
+#include <stdio.h>
 #include <time.h>
 #include "notes.h"
 #include "image.h"
@@ -15,57 +16,83 @@
 
 #define TITLE_FRAME 0
 
-volatile FLAG = 1;
+volatile FLAG = 0;
 
 int screen_state;
 
 void titleFrame();
 void init(void);
 
-int8_t enc_delta(void);
-volatile int8_t delta;
 
-int displayFrame(int state);
+volatile flag = 0;
+
+volatile int8_t firstButtonClicked = 0;
+volatile int8_t secondButtonClicked = 0;
+
+volatile int32_t startTime = 0; 
+volatile int32_t endTime = 0;
+volatile int32_t timePassed = 0;
+
+int timerTask(int state);
 int soundTask(int state);
-
+int displayFrame(int state);
 
 int soundTask(int state)
 {
-    OCR1A = 4435;
-	OCR3A = 4435;
-    OCR1A = 0;
-	OCR3A = 0;
+    OCR1A = 9999999;
+    OCR3A = 9999999;
+
     return state;
 }
 
-volatile flag = 0;
-volatile counter = 0;
-
-volatile timePassed = 0;
 
 int displayFrame(int state)
 {
-    counter++;
     flag = 1;
     return state;
 }
 
 int timerTask(int state)
 {
-   
-    OCR1A = 4435;
-	OCR3A = 4435;;
-    timePassed += 5;
-    if (FLAG == 1)
+
+
+    timePassed = timePassed + 1;
+
+    if (FLAG && firstButtonClicked && secondButtonClicked)
     {
-        display_string_xy("Flag = 1", 30, 40);
+        endTime = timePassed;
+        display_string_xy("Second click happened at", 30, 60);
+
+        char *diff1 = malloc(32 * 8);
+
+        int difference1;
+        difference1 = endTime;
+        itoa(difference1, diff1, 10);
+        display_string_xy(diff1, 180, 60);
+
+        int32_t differenceTime = endTime - startTime;
+        char diff2[20];
+        itoa(differenceTime,diff2,10);
+        display_string_xy("Interval between clicks", 30, 80);
+        display_string_xy(diff2,180,80);
+
+        FLAG = 0;
+        os_add_task(soundTask, differenceTime, 1);
     }
-    if (FLAG == 0)
+    else if (FLAG == 1 && firstButtonClicked)
     {
-        display_string_xy("Flag = 0", 30, 60);
+        startTime = timePassed;
+        char *diff = malloc(sizeof(uint32_t));
+        char buffer[20];
+
+        int difference;
+        difference = startTime;
+        itoa(difference, buffer, 10);
+        display_string_xy(buffer, 180, 40);
+        display_string_xy("First click happened at", 30, 40);
+        FLAG = 0;
     }
-    OCR1A = 0;
-	OCR3A = 0;
+ 
     return state;
 }
 
@@ -79,20 +106,14 @@ int main(void)
 
     for (;;)
     {
-    // OCR1A = 4435;
-	// OCR3A = OCR1A;
+
         if (flag)
         {
-
             cli();
             flag = 0;
             sei();
-
             switch (screen_state)
             {
-                OCR1A = 0;
-	OCR3A = OCR1A;
-
             case TITLE_FRAME:
                 titleFrame();
                 break;
@@ -108,23 +129,22 @@ int main(void)
 /* Configure I/O Ports */
 void init(void)
 {
-
     /* 8MHz clock, no prescaling (DS, p. 48) */
     CLKPR = (1 << CLKPCE);
     CLKPR = 0;
 
     /* use OC1A (RCH) and OC3A (LCH) pin as output */
-	DDRB |= _BV(PB5);
-	DDRC |= _BV(PC6);
+    DDRB |= _BV(PB5);
+    DDRC |= _BV(PC6);
 
-        /* 
+    /* 
     * clear OC1A/OC3A on compare match 
     * set OC1A/OC3A at BOTTOM, non-inverting mode
     * Fast PWM, 8bit
     */
     TCCR1A |= _BV(COM1A1) | _BV(WGM10);
     TCCR3A |= _BV(COM3A1) | _BV(WGM30);
-    
+
     /* 
     * Fast PWM, 8bit
     * Prescaler: clk/1 = 8MHz
@@ -132,31 +152,25 @@ void init(void)
     */
     TCCR1B |= _BV(WGM12) | _BV(CS10);
     TCCR3B |= _BV(WGM32) | _BV(CS30);
-    
+
     /* set initial duty cycle to zero */
     OCR1A = 0;
     OCR3A = 0;
-
-
-
 
     /** Initialize the  display */
     init_lcd();
     os_init_scheduler();
     os_init_ruota();
-    os_add_task(timerTask, 1000, 1);
-    os_add_task(displayFrame, 25, 1);
+    os_add_task(timerTask, 50, 1);
+    os_add_task(displayFrame, 100, 1);
 }
-
-
 
 // -----------------------------------------------------------------------------
 // --------------------------------Frames---------------------------------------
 // -----------------------------------------------------------------------------
 
 volatile int firstTitle = 1;
-volatile int firstButtonClicked = 0;
-volatile int secondButtonClicked = 0;
+
 void titleFrame()
 {
 
@@ -165,22 +179,23 @@ void titleFrame()
         firstTitle = 0;
         clear_screen();
         display_string_xy("This is the metronome!!!!", WIDTH / 3 - 30, HEIGHT / 2);
-        display_string_xy("Double tap to set the frequency", WIDTH / 3 - 30, HEIGHT / 2 + 8);
-        display_string_xy("Made by Krasimir Marinov", WIDTH / 3 - 30, HEIGHT / 2 + 16);
+        display_string_xy("Double tap the central button", WIDTH / 3 - 30, HEIGHT / 2 + 8);
+        display_string_xy("to set the frequency", WIDTH / 3 - 27, HEIGHT / 2 + 16);
+        display_string_xy("Made by Krasimir Marinov", WIDTH / 3 - 30, HEIGHT / 2 + 24);
     }
     else
     {
-        if (get_switch_state(_BV(SWN)) || get_switch_state(_BV(SWE)) || get_switch_state(_BV(SWW)) || get_switch_state(_BV(SWS)) && (firstButtonClicked == 0))
+        if (get_switch_state(_BV(SWC)) && (firstButtonClicked == 0))
         {
             firstButtonClicked = 1;
-            FLAG = 0;
-            display_string_xy("First button clicked", WIDTH / 3 - 30, HEIGHT / 2 + 24);
+            FLAG = 1;
+            display_string_xy("First time button clicked", WIDTH / 3 - 30, HEIGHT / 2 + 24);
             return;
         }
-        else if (get_switch_state(_BV(SWN)) || get_switch_state(_BV(SWE)) || get_switch_state(_BV(SWW)) || get_switch_state(_BV(SWS)) && (firstButtonClicked == 1))
+        else if (get_switch_state(_BV(SWC)) && (firstButtonClicked == 1))
         {
-            display_string_xy("Second button clicked", WIDTH / 3 - 30, HEIGHT / 2 + 32);
-            FLAG = 0;
+            display_string_xy("Second time button clicked", WIDTH / 3 - 30, HEIGHT / 2 + 32);
+            FLAG = 1;
             secondButtonClicked = 1;
             return;
         }

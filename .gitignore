@@ -1,0 +1,10 @@
+
+*.bin
+
+_build/
+
+\.vscode/ipch/344c81f5026b8958/rios\.ipch
+
+*.ipch
+
+*.json
